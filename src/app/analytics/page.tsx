@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">Incident Reduction (Last 7 Days)</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] w-full flex min-w-0" style={{ minHeight: '300px', minWidth: '0' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle className="text-sm font-bold uppercase tracking-wider text-green-500">System Performance Metrics</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] w-full flex min-w-0" style={{ minHeight: '300px', minWidth: '0' }}>
              <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
