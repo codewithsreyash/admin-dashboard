@@ -1,11 +1,48 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import type { DashboardAlert } from "@/lib/dashboard-types"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BellRing, ShieldAlert, NavigationOff, Search } from "lucide-react"
+import { BellRing, ShieldAlert, NavigationOff } from "lucide-react"
 
-export function AlertsFeed({ alerts }: { alerts: any[] }) {
-  const [selectedFir, setSelectedFir] = useState<any>(null)
+function formatId(value: unknown, length: number) {
+  return typeof value === "string" && value.length > 0
+    ? `${value.substring(0, length)}...`
+    : "UNKNOWN"
+}
+
+function formatCoordinates(lat: unknown, lng: unknown, digits: number) {
+  return typeof lat === "number" && Number.isFinite(lat) && typeof lng === "number" && Number.isFinite(lng)
+    ? `${lat.toFixed(digits)}, ${lng.toFixed(digits)}`
+    : "Location unavailable"
+}
+
+function formatTimestamp(value: unknown) {
+  if (!value) {
+    return "Unknown time"
+  }
+
+  const date = new Date(value as string)
+  return Number.isNaN(date.getTime()) ? "Unknown time" : date.toLocaleTimeString()
+}
+
+function formatDateTime(value: unknown) {
+  if (!value) {
+    return "Unknown date"
+  }
+
+  const date = new Date(value as string)
+  return Number.isNaN(date.getTime()) ? "Unknown date" : date.toLocaleString()
+}
+
+function getIncidentHash(alert: DashboardAlert | null) {
+  const seed = alert?.alertId || alert?.touristId || "UNKNOWN"
+  return seed.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 13) || "UNKNOWN"
+}
+
+export function AlertsFeed({ alerts }: { alerts: DashboardAlert[] }) {
+  const [selectedFir, setSelectedFir] = useState<DashboardAlert | null>(null)
+  const safeAlerts = Array.isArray(alerts) ? alerts : []
 
   return (
     <>
@@ -16,46 +53,55 @@ export function AlertsFeed({ alerts }: { alerts: any[] }) {
               <BellRing className="h-5 w-5 text-destructive animate-pulse" />
               Live Security Feed
             </CardTitle>
-            <Badge variant="destructive" className="animate-pulse font-bold">{alerts.length} Incidents</Badge>
+            <Badge variant="destructive" className="animate-pulse font-bold">{safeAlerts.length} Incidents</Badge>
           </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-0">
           <div className="divide-y divide-border/50">
-            {alerts.length === 0 && (
+            {safeAlerts.length === 0 && (
               <div className="p-12 text-center text-muted-foreground space-y-4">
                 <div className="flex justify-center"><ShieldAlert className="h-12 w-12 opacity-10" /></div>
                 <p className="text-xs font-bold tracking-widest">Awaiting System Pings...</p>
               </div>
             )}
-            {alerts.map((alert) => (
-              <div key={alert.alertId} className={`p-4 transition-colors flex gap-4 flex-col ${alert.type === 'Panic' ? 'bg-destructive/10 animate-pulse border-l-4 border-red-600' : 'hover:bg-muted/50 border-l-4 border-transparent'}`}>
-                <div className="flex gap-4">
-                  <div className="mt-1">
-                    {alert.type === "Panic" && <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />}
-                    {alert.type === "Zone" && <NavigationOff className="h-5 w-5 text-orange-500" />}
+            {safeAlerts.map((alert, index) => {
+              const alertType = typeof alert?.type === "string" ? alert.type : "Unknown"
+              const touristId = typeof alert?.touristId === "string" ? alert.touristId : "UNKNOWN"
+              const tripId = typeof alert?.tripId === "string" && alert.tripId.trim() ? alert.tripId : "DEFAULT"
+              const lat = typeof alert?.location?.lat === "number" ? alert.location.lat : null
+              const lng = typeof alert?.location?.lng === "number" ? alert.location.lng : null
+              const alertKey = typeof alert?.alertId === "string" ? alert.alertId : `${touristId}-${index}`
+
+              return (
+                <div key={alertKey} className={`p-4 transition-colors flex gap-4 flex-col ${alertType === 'Panic' ? 'bg-destructive/10 animate-pulse border-l-4 border-red-600' : 'hover:bg-muted/50 border-l-4 border-transparent'}`}>
+                  <div className="flex gap-4">
+                    <div className="mt-1">
+                      {alertType === "Panic" && <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />}
+                      {alertType !== "Panic" && <NavigationOff className="h-5 w-5 text-orange-500" />}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between items-start">
+                        <p className="text-xs font-black leading-none">[{alertType}] {formatId(touristId, 8)}</p>
+                        <Badge variant="outline" className="text-[9px] px-1 h-4">{tripId}</Badge>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-1 font-mono">
+                        <span>{formatCoordinates(lat, lng, 4)}</span>
+                        <span>{formatTimestamp(alert?.timestamp)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex justify-between items-start">
-                      <p className="text-xs font-black leading-none">[{alert.type}] {alert.touristId.substring(0, 8)}...</p>
-                      <Badge variant="outline" className="text-[9px] px-1 h-4">{alert.tripId}</Badge>
-                    </div>
-                    <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-1 font-mono">
-                      <span>{alert.location.lat.toFixed(4)}, {alert.location.lng.toFixed(4)}</span>
-                      <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
-                    </div>
+                  <div className="flex gap-2 pl-9">
+                    <button className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-1 rounded border border-green-500/20 hover:bg-green-500/20 transition-all uppercase">Verify</button>
+                    <button 
+                      onClick={() => setSelectedFir(alert)}
+                      className="text-[10px] bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-all font-black uppercase tracking-tighter"
+                    >
+                      Generate E-FIR
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2 pl-9">
-                  <button className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-1 rounded border border-green-500/20 hover:bg-green-500/20 transition-all uppercase">Verify</button>
-                  <button 
-                    onClick={() => setSelectedFir(alert)}
-                    className="text-[10px] bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-all font-black uppercase tracking-tighter"
-                  >
-                    Generate E-FIR
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
@@ -82,11 +128,11 @@ export function AlertsFeed({ alerts }: { alerts: any[] }) {
               <div className="flex justify-between border-b pb-4">
                 <div className="space-y-1">
                   <p className="text-[10px] uppercase font-bold text-gray-500">Incident Hash ID</p>
-                  <p className="text-sm font-mono font-bold">{Math.random().toString(36).substring(2, 15).toUpperCase()}</p>
+                  <p className="text-sm font-mono font-bold">{getIncidentHash(selectedFir)}</p>
                 </div>
                 <div className="space-y-1 text-right">
                   <p className="text-[10px] uppercase font-bold text-gray-500">Date of Incident</p>
-                  <p className="text-sm font-bold font-mono">{new Date(selectedFir.timestamp).toLocaleString()}</p>
+                  <p className="text-sm font-bold font-mono">{formatDateTime(selectedFir?.timestamp)}</p>
                 </div>
               </div>
 
@@ -96,11 +142,11 @@ export function AlertsFeed({ alerts }: { alerts: any[] }) {
                   <div className="space-y-2">
                     <div className="flex justify-between text-[10px]">
                       <span className="text-gray-700 font-bold">Tourist ID:</span>
-                      <span className="font-mono text-blue-600">{selectedFir.touristId.substring(0, 12)}...</span>
+                      <span className="font-mono text-blue-600">{formatId(selectedFir?.touristId, 12)}</span>
                     </div>
                     <div className="flex justify-between text-[10px]">
                       <span className="text-gray-700 font-bold">Trip ID:</span>
-                      <span className="font-bold">{selectedFir.tripId}</span>
+                      <span className="font-bold">{typeof selectedFir?.tripId === "string" ? selectedFir.tripId : "DEFAULT"}</span>
                     </div>
                     <p className="text-xs text-gray-500 italic mt-2">*Verified via Blockchain Hash</p>
                   </div>
@@ -110,7 +156,7 @@ export function AlertsFeed({ alerts }: { alerts: any[] }) {
                   <h3 className="text-[10px] uppercase font-bold text-red-600 mb-3 underline">Incident Location</h3>
                   <div className="space-y-2">
                     <p className="text-xs text-gray-700 font-bold tracking-tight">Coordinates:</p>
-                    <p className="text-sm font-mono bg-red-50 p-1 border border-red-100 rounded text-red-700">{selectedFir.location.lat.toFixed(6)}, {selectedFir.location.lng.toFixed(6)}</p>
+                    <p className="text-sm font-mono bg-red-50 p-1 border border-red-100 rounded text-red-700">{formatCoordinates(selectedFir?.location?.lat, selectedFir?.location?.lng, 6)}</p>
                     <p className="text-xs text-gray-500 italic mt-2">*Real-Time GPS Tag</p>
                   </div>
                 </Card>
@@ -118,7 +164,7 @@ export function AlertsFeed({ alerts }: { alerts: any[] }) {
 
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
                 <h3 className="text-[10px] uppercase font-bold text-yellow-800 mb-2">Offense Summary / Alert Type</h3>
-                <p className="text-lg font-black text-gray-900 uppercase tracking-tighter">[{selectedFir.type}]</p>
+                <p className="text-lg font-black text-gray-900 uppercase tracking-tighter">[{typeof selectedFir?.type === "string" ? selectedFir.type : "Unknown"}]</p>
                 <p className="text-xs text-yellow-900 mt-2 font-medium">Automatic system trigger generated by SafeCity Anomaly Engine. Emergency services notified immediately.</p>
               </div>
 

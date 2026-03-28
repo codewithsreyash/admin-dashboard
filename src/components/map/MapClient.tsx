@@ -1,9 +1,22 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
+import type { DashboardTourist } from "@/lib/dashboard-types"
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet"
 import "leaflet/dist/leaflet.css"
 import L from "leaflet"
 import "leaflet.heat"
+
+type HeatLayerFactory = typeof L & {
+  heatLayer?: (
+    points: [number, number, number][],
+    options: {
+      radius: number;
+      blur: number;
+      maxZoom: number;
+      gradient: Record<number, string>;
+    }
+  ) => L.Layer;
+}
 
 const normalIcon = L.divIcon({
   className: 'custom-div-icon',
@@ -32,18 +45,36 @@ const HEATMAP_POINTS: [number, number, number][] = [
   [28.6145, 77.2018, 0.7]
 ];
 
-function HeatmapLayer({ tourists }: { tourists: any[] }) {
-  const map = useMap();
-  useEffect(() => {
-    // Only execute on client-side and ensure leaflet.heat is attached
-    if (typeof window !== 'undefined' && (L as any).heatLayer) {
-      const points: [number, number, number][] = tourists.map(t => [
-        t.currentLocation.lat,
-        t.currentLocation.lng,
-        t.status === 'Panic' ? 1 : 0.5
-      ]);
+function hasValidCurrentLocation(tourist: DashboardTourist) {
+  return typeof tourist?.currentLocation?.lat === "number"
+    && Number.isFinite(tourist.currentLocation.lat)
+    && typeof tourist?.currentLocation?.lng === "number"
+    && Number.isFinite(tourist.currentLocation.lng)
+}
 
-      const heat = (L as any).heatLayer(points, {
+function HeatmapLayer({ tourists }: { tourists: DashboardTourist[] }) {
+  const map = useMap();
+  const leafletWithHeat = L as HeatLayerFactory;
+
+  useEffect(() => {
+    const safeTourists = tourists.filter(hasValidCurrentLocation)
+
+    // Only execute on client-side and ensure leaflet.heat is attached
+    if (typeof window !== 'undefined' && leafletWithHeat.heatLayer) {
+      const points: [number, number, number][] = [
+        ...HEATMAP_POINTS,
+        ...safeTourists.map(t => [
+          t.currentLocation.lat,
+          t.currentLocation.lng,
+          t.status === 'Panic' ? 1 : 0.5
+        ]),
+      ];
+
+      if (points.length === 0) {
+        return;
+      }
+
+      const heat = leafletWithHeat.heatLayer(points, {
         radius: 35,
         blur: 25,
         maxZoom: 15,
@@ -54,11 +85,13 @@ function HeatmapLayer({ tourists }: { tourists: any[] }) {
         map.removeLayer(heat);
       };
     }
-  }, [map, tourists]);
+  }, [leafletWithHeat, map, tourists]);
   return null;
 }
 
-export default function MapClient({ tourists }: { tourists: any[] }) {
+export default function MapClient({ tourists }: { tourists: DashboardTourist[] }) {
+  const safeTourists = Array.isArray(tourists) ? tourists.filter(hasValidCurrentLocation) : []
+
   return (
     <MapContainer center={[28.6139, 77.2090] as [number, number]} zoom={14} style={{ height: "100%", width: "100%" }} className="z-0">
       <TileLayer
@@ -72,37 +105,43 @@ export default function MapClient({ tourists }: { tourists: any[] }) {
         radius={500} 
       />
       
-      <HeatmapLayer tourists={tourists} />
+      <HeatmapLayer tourists={safeTourists} />
       
-      {tourists.map((u) => (
-        <Marker 
-          key={u.blockchainId} 
-          position={[u.currentLocation.lat, u.currentLocation.lng]} 
-          icon={u.safetyScore < 80 ? dangerIcon : normalIcon}
-        >
-          <Popup>
-            <div className="p-1 min-w-[150px]">
-              <div className="font-bold border-b pb-1 mb-1">{u.name}</div>
-              <div className="text-[10px] font-mono text-muted-foreground break-all">{u.blockchainId}</div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span>Status:</span>
-                  <span className={`font-bold ${u.status === 'Panic' ? 'text-red-500' : (u.status === 'Warning' ? 'text-yellow-600' : 'text-green-600')}`}>
-                    {u.status}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span>Safety:</span>
-                  <span className="font-bold" style={{ color: u.safetyScore < 80 ? "#ef4444" : "#22c55e" }}>
-                    {u.safetyScore}/100
-                  </span>
+      {safeTourists.map((u, index) => {
+        const touristName = typeof u?.name === "string" && u.name.trim() ? u.name : "Unknown Tourist"
+        const touristId = typeof u?.blockchainId === "string" && u.blockchainId.trim() ? u.blockchainId : `tourist-${index}`
+        const safetyScore = typeof u?.safetyScore === "number" && Number.isFinite(u.safetyScore) ? u.safetyScore : 100
+        const status = typeof u?.status === "string" && u.status.trim() ? u.status : "Active"
+
+        return (
+          <Marker 
+            key={touristId} 
+            position={[u.currentLocation.lat, u.currentLocation.lng]} 
+            icon={safetyScore < 80 ? dangerIcon : normalIcon}
+          >
+            <Popup>
+              <div className="p-1 min-w-[150px]">
+                <div className="font-bold border-b pb-1 mb-1">{touristName}</div>
+                <div className="text-[10px] font-mono text-muted-foreground break-all">{touristId}</div>
+                <div className="mt-2 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span>Status:</span>
+                    <span className={`font-bold ${status === 'Panic' ? 'text-red-500' : (status === 'Warning' ? 'text-yellow-600' : 'text-green-600')}`}>
+                      {status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Safety:</span>
+                    <span className="font-bold" style={{ color: safetyScore < 80 ? "#ef4444" : "#22c55e" }}>
+                      {safetyScore}/100
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+            </Popup>
+          </Marker>
+        )
+      })}
     </MapContainer>
   )
 }
-
