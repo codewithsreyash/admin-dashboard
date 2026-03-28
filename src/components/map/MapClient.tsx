@@ -61,13 +61,15 @@ function HeatmapLayer({ tourists }: { tourists: DashboardTourist[] }) {
 
     // Only execute on client-side and ensure leaflet.heat is attached
     if (typeof window !== 'undefined' && leafletWithHeat.heatLayer) {
+      const liveTouristPoints: [number, number, number][] = safeTourists.map((tourist) => [
+        tourist.currentLocation.lat,
+        tourist.currentLocation.lng,
+        tourist.status === 'Panic' ? 1 : 0.5
+      ] as [number, number, number])
+
       const points: [number, number, number][] = [
         ...HEATMAP_POINTS,
-        ...safeTourists.map(t => [
-          t.currentLocation.lat,
-          t.currentLocation.lng,
-          t.status === 'Panic' ? 1 : 0.5
-        ]),
+        ...liveTouristPoints,
       ];
 
       if (points.length === 0) {
