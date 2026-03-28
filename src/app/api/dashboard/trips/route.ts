@@ -1,37 +1,53 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Trip from '@/lib/models/Trip';
-import Tourist from '@/lib/models/Tourist';
-import Alert from '@/lib/models/Alert';
 
 export async function GET() {
   try {
-    await dbConnect();
+    // Proxy to Render backend for live data
+    const backendUrl = process.env.BACKEND_URL || 'https://tourist-backend-acsb.onrender.com';
+    const response = await fetch(`${backendUrl}/api/dashboard/data`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-    // Fetch all trips
-    const trips = await Trip.find({}).lean();
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
 
-    // For each trip, fetch its tourists and active alerts
-    const populatedTrips = await Promise.all(trips.map(async (trip: any) => {
-      const tourists = await Tourist.find({
-        blockchainId: { $in: trip.touristIds }
-      }).lean();
+    const backendData = await response.json();
 
-      const alerts = await Alert.find({
-        tripId: trip.tripId,
-        status: 'Active'
-      }).sort({ timestamp: -1 }).lean();
+    // Transform backend data to match existing frontend format
+    const trips: any[] = [];
+    
+    if (backendData.users && Array.isArray(backendData.users)) {
+      // Group users by trip if available, otherwise create a default trip
+      const groupedByTrip: Record<string, any[]> = {};
+      
+      backendData.users.forEach((user: any) => {
+        const tripId = user.tripId || 'DEFAULT';
+        if (!groupedByTrip[tripId]) {
+          groupedByTrip[tripId] = [];
+        }
+        groupedByTrip[tripId].push(user);
+      });
 
-      return {
-        ...trip,
-        tourists,
-        alerts
-      };
-    }));
+      // Convert grouped data to trips array
+      Object.entries(groupedByTrip).forEach(([tripId, tourists]) => {
+        trips.push({
+          _id: tripId,
+          tripId,
+          title: tripId,
+          touristIds: tourists.map((t: any) => t.id),
+          tourists,
+          alerts: backendData.alerts || [],
+        });
+      });
+    }
 
-    return NextResponse.json({ trips: populatedTrips });
+    return NextResponse.json({ trips: trips.length > 0 ? trips : [] });
   } catch (error: any) {
-    console.error('Failed to fetch dashboard trips:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Failed to fetch dashboard trips from backend:', error);
+    return NextResponse.json({ error: error.message, trips: [] }, { status: 500 });
   }
 }
