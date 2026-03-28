@@ -9,10 +9,10 @@ const Map = dynamic(
   }
 )
 
-export function LiveMap() {
+export function LiveMap({ tourists }: { tourists: any[] }) {
   return (
     <div className="h-[500px] w-full overflow-hidden rounded-xl border shadow-sm">
-      <Map />
+      <Map tourists={tourists} />
     </div>
   )
 }
