@@ -1,170 +1,526 @@
 "use client"
-import { useEffect, useState } from "react"
-import type { DashboardTrip, DashboardTripsResponse } from "@/lib/dashboard-types"
+
+import Link from "next/link"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { ReactNode } from "react"
+import type {
+  DashboardAlert,
+  DashboardAlertEvent,
+  DashboardLocationUpdateEvent,
+  DashboardTourist,
+  DashboardTrip,
+  DashboardTripsResponse,
+} from "@/lib/dashboard-types"
+import { DASHBOARD_SOCKET_EVENTS, disconnectDashboardSocket, getDashboardSocket } from "@/lib/socket"
+import { getTouristSignalMeta, SIGNAL_REFRESH_INTERVAL_MS, STALE_SIGNAL_THRESHOLD_MS } from "@/lib/signal-status"
 import { LiveMap } from "@/components/map/LiveMap"
+import { TouristSignalList } from "@/components/map/TouristSignalList"
 import { AlertsFeed } from "@/components/alerts/AlertsFeed"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Activity, ShieldAlert, Fingerprint, MapPin, AlertTriangle } from "lucide-react"
+import { Activity, AlertTriangle, CalendarRange, MapPin, Route, ShieldAlert, Users, Wifi } from "lucide-react"
+
+const DEFAULT_TRIP_ID = "DEFAULT"
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error"
+}
+
+function sortAlertsByNewest(alerts: DashboardAlert[]) {
+  return [...alerts].sort((left, right) => {
+    const leftTime = new Date(left.timestamp || 0).getTime()
+    const rightTime = new Date(right.timestamp || 0).getTime()
+    return rightTime - leftTime
+  })
+}
+
+function mergeUniqueTourists(tourists: DashboardTourist[]) {
+  return tourists.reduce<DashboardTourist[]>((uniqueTourists, tourist) => upsertTourist(uniqueTourists, tourist), [])
+}
+
+function createSocketTripPlaceholder(tripId: string, tourist?: DashboardTourist | null, alert?: DashboardAlert | null): DashboardTrip {
+  const tourists = tourist ? [tourist] : []
+  const alerts = alert ? [alert] : []
+
+  return {
+    _id: `socket-${tripId}`,
+    tripId,
+    title: tripId,
+    destination: "Live stream only",
+    status: "Active",
+    touristIds: tourists.map((entry) => entry.blockchainId),
+    touristCount: tourists.length,
+    tourists,
+    alerts,
+  }
+}
+
+function withTripSummary(trip: DashboardTrip, tourists: DashboardTourist[], alerts: DashboardAlert[]) {
+  return {
+    ...trip,
+    tourists,
+    touristIds: tourists.map((tourist) => tourist.blockchainId),
+    touristCount: tourists.length,
+    alerts: sortAlertsByNewest(alerts),
+  }
+}
+
+function upsertTourist(tourists: DashboardTourist[], tourist: DashboardTourist) {
+  const nextTourists = [...tourists]
+  const existingIndex = nextTourists.findIndex((entry) => entry.blockchainId === tourist.blockchainId)
+
+  if (existingIndex === -1) {
+    nextTourists.push(tourist)
+  } else {
+    nextTourists[existingIndex] = {
+      ...nextTourists[existingIndex],
+      ...tourist,
+    }
+  }
+
+  return nextTourists
+}
+
+function removeTourist(tourists: DashboardTourist[], touristId: string) {
+  return tourists.filter((tourist) => tourist.blockchainId !== touristId)
+}
+
+function upsertAlert(alerts: DashboardAlert[], alert: DashboardAlert) {
+  const nextAlerts = [...alerts]
+  const existingIndex = nextAlerts.findIndex((entry) => entry.alertId === alert.alertId)
+
+  if (existingIndex === -1) {
+    nextAlerts.unshift(alert)
+  } else {
+    nextAlerts[existingIndex] = {
+      ...nextAlerts[existingIndex],
+      ...alert,
+    }
+  }
+
+  return sortAlertsByNewest(nextAlerts)
+}
+
+function applyLocationUpdate(currentTrips: DashboardTrip[], event: DashboardLocationUpdateEvent) {
+  const tourist = event.tourist
+  const touristId = tourist?.blockchainId || event.touristId
+  const targetTripId = tourist?.tripId || event.tripId || DEFAULT_TRIP_ID
+  let targetTripFound = false
+
+  const nextTrips = currentTrips.map((trip) => {
+    const hasTourist = trip.tourists.some((entry) => entry.blockchainId === touristId)
+
+    if (trip.tripId === targetTripId) {
+      targetTripFound = true
+      if (!tourist) {
+        return trip
+      }
+
+      return withTripSummary(trip, upsertTourist(trip.tourists, tourist), trip.alerts)
+    }
+
+    if (hasTourist) {
+      return withTripSummary(trip, removeTourist(trip.tourists, touristId), trip.alerts)
+    }
+
+    return trip
+  })
+
+  if (!targetTripFound && tourist) {
+    return [createSocketTripPlaceholder(targetTripId, tourist), ...nextTrips]
+  }
+
+  return nextTrips
+}
+
+function applyAlertUpdate(currentTrips: DashboardTrip[], event: DashboardAlertEvent) {
+  const tourist = event.tourist
+  const alert = event.alert
+  const touristId = tourist?.blockchainId || event.touristId
+  const targetTripId = tourist?.tripId || alert?.tripId || event.tripId || DEFAULT_TRIP_ID
+  let targetTripFound = false
+
+  const nextTrips = currentTrips.map((trip) => {
+    const hasTourist = trip.tourists.some((entry) => entry.blockchainId === touristId)
+
+    if (trip.tripId === targetTripId) {
+      targetTripFound = true
+      const nextTourists = tourist ? upsertTourist(trip.tourists, tourist) : trip.tourists
+      const nextAlerts = alert ? upsertAlert(trip.alerts, alert) : trip.alerts
+      return withTripSummary(trip, nextTourists, nextAlerts)
+    }
+
+    if (tourist && hasTourist) {
+      return withTripSummary(trip, removeTourist(trip.tourists, touristId), trip.alerts)
+    }
+
+    return trip
+  })
+
+  if (!targetTripFound) {
+    return [createSocketTripPlaceholder(targetTripId, tourist, alert), ...nextTrips]
+  }
+
+  return nextTrips
+}
 
 export default function Dashboard() {
   const [trips, setTrips] = useState<DashboardTrip[]>([])
   const [selectedTripId, setSelectedTripId] = useState<string>("ALL")
-  const [stats, setStats] = useState({ active: 0, alerts: 0 })
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [socketStatus, setSocketStatus] = useState<"Connecting" | "Live" | "Reconnecting" | "Offline">("Connecting")
+  const [signalNowMs, setSignalNowMs] = useState(() => Date.now())
+  const selectedTripIdRef = useRef(selectedTripId)
+  const hasInitializedSelection = useRef(false)
 
-  useEffect(() => {
-    let isMounted = true
+  const loadTrips = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
 
-    const fetchData = async () => {
-      try {
-        if (isMounted) {
-          setIsLoading(true)
-          setError(null)
-        }
+      const response = await fetch("/api/dashboard/trips", {
+        method: "GET",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+      })
 
-        const res = await fetch("/api/dashboard/trips", { 
-          method: "GET",
-          cache: "no-store",
-          headers: { "Content-Type": "application/json" }
-        })
+      const rawPayload = await response.text()
+      let payload: DashboardTripsResponse = { trips: [] }
 
-        const rawPayload = await res.text()
-        let data: DashboardTripsResponse = { trips: [] }
-
-        if (rawPayload) {
-          try {
-            data = JSON.parse(rawPayload)
-          } catch {
-            throw new Error("Dashboard API returned invalid JSON")
-          }
-        }
-
-        if (!res.ok) {
-          throw new Error(typeof data?.error === "string" ? data.error : `API returned ${res.status}`)
-        }
-
-        const tripsData = Array.isArray(data?.trips) ? data.trips : []
-
-        if (!isMounted) {
-          return
-        }
-
-        setTrips(tripsData)
-        
-        let totalActive = 0
-        let totalAlerts = 0
-        tripsData.forEach((trip) => {
-          const tourists = Array.isArray(trip?.tourists) ? trip.tourists : []
-          const alerts = Array.isArray(trip?.alerts) ? trip.alerts : []
-          totalActive += tourists.length
-          totalAlerts += alerts.length
-        })
-        setStats({ active: totalActive, alerts: totalAlerts })
-      } catch (error: unknown) {
-        console.error("Dashboard fetch error:", error)
-        if (!isMounted) {
-          return
-        }
-        setError(`Unable to connect to server: ${error instanceof Error ? error.message : 'Unknown error'}`)
-        setTrips([])
-        setStats({ active: 0, alerts: 0 })
-      } finally {
-        if (isMounted) {
-          setIsLoading(false)
-        }
+      if (rawPayload) {
+        payload = JSON.parse(rawPayload) as DashboardTripsResponse
       }
-    }
-    
-    fetchData()
-    const interval = window.setInterval(fetchData, 5000)
 
-    return () => {
-      isMounted = false
-      window.clearInterval(interval)
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string" ? payload.error : `Dashboard API returned ${response.status}`
+        )
+      }
+
+      setTrips(Array.isArray(payload?.trips) ? payload.trips : [])
+    } catch (fetchError: unknown) {
+      console.error("Dashboard bootstrap fetch error:", fetchError)
+      setTrips([])
+      setError(`Unable to connect to server: ${getErrorMessage(fetchError)}`)
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
-  const safeTrips = Array.isArray(trips) ? trips : []
-  const selectedTripData: Pick<DashboardTrip, "tourists" | "alerts"> = selectedTripId === "ALL" 
-    ? { 
-        tourists: safeTrips.flatMap(t => Array.isArray(t?.tourists) ? t.tourists : []),
-        alerts: safeTrips.flatMap(t => Array.isArray(t?.alerts) ? t.alerts : [])
+  useEffect(() => {
+    void loadTrips()
+  }, [loadTrips])
+
+  useEffect(() => {
+    const socket = getDashboardSocket()
+    socket.auth = {
+      role: "admin",
+      tripId: selectedTripIdRef.current,
+    }
+
+    const handleConnect = () => {
+      setSocketStatus("Live")
+      socket.emit(DASHBOARD_SOCKET_EVENTS.adminJoinTripRoom, {
+        tripId: selectedTripIdRef.current,
+      })
+    }
+
+    const handleDisconnect = () => {
+      setSocketStatus("Reconnecting")
+    }
+
+    const handleConnectError = () => {
+      setSocketStatus("Reconnecting")
+    }
+
+    const handleReconnectAttempt = () => {
+      setSocketStatus("Reconnecting")
+    }
+
+    const handleReconnectFailed = () => {
+      setSocketStatus("Offline")
+    }
+
+    const handleSocketError = (payload: { message?: string } | undefined) => {
+      setSocketStatus("Offline")
+      if (payload?.message) {
+        setError(payload.message)
       }
-    : safeTrips.find(t => t?.tripId === selectedTripId) || { tourists: [], alerts: [] }
+    }
+
+    const handleLocationUpdate = (event: DashboardLocationUpdateEvent) => {
+      setTrips((currentTrips) => applyLocationUpdate(currentTrips, event))
+    }
+
+    const handleAlertUpdate = (event: DashboardAlertEvent) => {
+      setTrips((currentTrips) => applyAlertUpdate(currentTrips, event))
+    }
+
+    setSocketStatus("Connecting")
+    socket.on("connect", handleConnect)
+    socket.on("disconnect", handleDisconnect)
+    socket.on("connect_error", handleConnectError)
+    socket.on(DASHBOARD_SOCKET_EVENTS.error, handleSocketError)
+    socket.on(DASHBOARD_SOCKET_EVENTS.locationUpdate, handleLocationUpdate)
+    socket.on(DASHBOARD_SOCKET_EVENTS.newAlert, handleAlertUpdate)
+    socket.io.on("reconnect_attempt", handleReconnectAttempt)
+    socket.io.on("reconnect_failed", handleReconnectFailed)
+    socket.connect()
+
+    return () => {
+      socket.off("connect", handleConnect)
+      socket.off("disconnect", handleDisconnect)
+      socket.off("connect_error", handleConnectError)
+      socket.off(DASHBOARD_SOCKET_EVENTS.error, handleSocketError)
+      socket.off(DASHBOARD_SOCKET_EVENTS.locationUpdate, handleLocationUpdate)
+      socket.off(DASHBOARD_SOCKET_EVENTS.newAlert, handleAlertUpdate)
+      socket.io.off("reconnect_attempt", handleReconnectAttempt)
+      socket.io.off("reconnect_failed", handleReconnectFailed)
+      disconnectDashboardSocket()
+    }
+  }, [loadTrips])
+
+  useEffect(() => {
+    selectedTripIdRef.current = selectedTripId
+
+    const socket = getDashboardSocket()
+    socket.auth = {
+      role: "admin",
+      tripId: selectedTripId,
+    }
+
+    if (socket.connected) {
+      socket.emit(DASHBOARD_SOCKET_EVENTS.adminJoinTripRoom, {
+        tripId: selectedTripId,
+      })
+    }
+
+    if (hasInitializedSelection.current) {
+      void loadTrips()
+    } else {
+      hasInitializedSelection.current = true
+    }
+  }, [loadTrips, selectedTripId])
+
+  useEffect(() => {
+    if (selectedTripId === "ALL") {
+      return
+    }
+
+    if (!trips.some((trip) => trip.tripId === selectedTripId)) {
+      setSelectedTripId("ALL")
+    }
+  }, [selectedTripId, trips])
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setSignalNowMs(Date.now())
+    }, SIGNAL_REFRESH_INTERVAL_MS)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
+
+  const safeTrips = trips
+  const selectedTrip =
+    selectedTripId === "ALL" ? null : safeTrips.find((trip) => trip.tripId === selectedTripId) || null
+  const selectedTripData =
+    selectedTripId === "ALL"
+      ? {
+          tourists: mergeUniqueTourists(safeTrips.flatMap((trip) => trip.tourists || [])),
+          alerts: sortAlertsByNewest(safeTrips.flatMap((trip) => trip.alerts || [])),
+        }
+      : {
+          tourists: selectedTrip?.tourists || [],
+          alerts: sortAlertsByNewest(selectedTrip?.alerts || []),
+        }
+
+  const stats = useMemo(() => {
+    const uniqueTourists = mergeUniqueTourists(safeTrips.flatMap((trip) => trip.tourists || []))
+    const activeTourists = uniqueTourists.filter((tourist) => !getTouristSignalMeta(tourist, signalNowMs).isStale).length
+    const incidentCount = safeTrips.reduce((count, trip) => count + (trip.alerts?.length || 0), 0)
+    const activeTripCount = safeTrips.filter((trip) => trip.status === "Active").length
+
+    return {
+      active: activeTourists,
+      alerts: incidentCount,
+      trips: activeTripCount,
+    }
+  }, [safeTrips, signalNowMs])
+
+  const signalSummary = useMemo(() => {
+    const live = selectedTripData.tourists.filter((tourist) => !getTouristSignalMeta(tourist, signalNowMs).isStale).length
+    const stale = selectedTripData.tourists.length - live
+
+    return {
+      live,
+      stale,
+    }
+  }, [selectedTripData.tourists, signalNowMs])
 
   return (
     <div className="flex-1 space-y-6 p-8 pt-6">
       {error && (
-        <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-4 flex gap-3">
-          <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+        <div className="flex gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
           <div>
             <p className="text-sm font-semibold text-destructive">Connection Error</p>
             <p className="text-xs text-destructive/80">{error}</p>
           </div>
         </div>
       )}
-      
-      <div className="flex items-center justify-between space-y-2">
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
-          <p className="text-muted-foreground text-sm">Monitoring live tourist security & blockchain identity.</p>
+          <p className="text-sm text-muted-foreground">
+            Monitoring live tourist security, trip assignments, and incident traffic from deduplicated backend data.
+          </p>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground">Active Trip Filter</span>
-            <select 
-              value={selectedTripId}
-              onChange={(e) => setSelectedTripId(e.target.value)}
-              className="bg-background border rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-            >
-              <option value="ALL">All Active Trips</option>
-              {safeTrips.map(trip => (
-                <option key={trip?.tripId} value={trip?.tripId}>{trip?.tripId} ({Array.isArray(trip?.tourists) ? trip.tourists.length : 0})</option>
-              ))}
-            </select>
+
+        <div className="flex items-center gap-3">
+          <div className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm">
+            <Wifi
+              className={`h-4 w-4 ${
+                socketStatus === "Live"
+                  ? "text-emerald-500"
+                  : socketStatus === "Connecting" || socketStatus === "Reconnecting"
+                    ? "text-amber-500"
+                    : "text-destructive"
+              }`}
+            />
+            <span>{socketStatus === "Live" ? "Realtime Connected" : socketStatus === "Reconnecting" ? "Reconnecting..." : socketStatus}</span>
           </div>
+
+          <Link
+            href="/trips"
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted"
+          >
+            Open Trip Management
+          </Link>
         </div>
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Live Tourists" value={isLoading ? "—" : stats?.active?.toString() || "0"} icon={<Users />} />
-        <MetricCard title="System Pings / min" value={isLoading ? "—" : "Real-Time"} icon={<Activity />} />
-        <MetricCard title="Active Incidents" value={isLoading ? "—" : stats?.alerts?.toString() || "0"} icon={<ShieldAlert className={!isLoading && (stats?.alerts || 0) > 0 ? "text-destructive animate-pulse" : "text-muted-foreground"} />} />
-        <MetricCard title="Blockchain Verifications" value="100%" icon={<Fingerprint className="text-green-500" />} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 h-[650px]">
-        <div className="col-span-4 h-full flex flex-col">
-          <Card className="flex-1 border shadow-sm flex flex-col overflow-hidden">
-            <CardHeader className="py-4 border-b bg-muted/5">
-              <div className="flex justify-between items-center">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  Live Map Tracking: {selectedTripId}
-                </CardTitle>
-                <div className="flex gap-2">
-                   <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> <span className="text-[10px] font-medium">Safe</span></div>
-                   <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-yellow-500" /> <span className="text-[10px] font-medium">Warning</span></div>
-                   <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500" /> <span className="text-[10px] font-medium">Panic</span></div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard title="Live Tourists" value={isLoading ? "--" : String(stats.active)} icon={<Users />} />
+        <MetricCard title="Active Trips" value={isLoading ? "--" : String(stats.trips)} icon={<Route />} />
+        <MetricCard title="System Pings / min" value={socketStatus === "Live" ? "Socket Live" : "Syncing"} icon={<Activity />} />
+        <MetricCard
+          title="Active Incidents"
+          value={isLoading ? "--" : String(stats.alerts)}
+          icon={
+            <ShieldAlert
+              className={!isLoading && stats.alerts > 0 ? "animate-pulse text-destructive" : "text-muted-foreground"}
+            />
+          }
+        />
+      </div>
+
+      <div className="grid h-[680px] gap-4 lg:grid-cols-7">
+        <div className="col-span-4 h-full">
+          <Card className="flex h-full flex-col overflow-hidden border shadow-sm">
+            <CardHeader className="border-b bg-muted/5 py-4">
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="space-y-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Live Map Tracking
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedTrip
+                      ? `${selectedTrip.title}${selectedTrip.destination ? ` - ${selectedTrip.destination}` : ""}`
+                      : "Viewing all active trip traffic and deduplicated live tourists."}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                    <span>{signalSummary.live} live</span>
+                    <span>{signalSummary.stale} signal lost</span>
+                    <span>Stale after {Math.round(STALE_SIGNAL_THRESHOLD_MS / 60000)} minutes without a ping</span>
+                  </div>
+                  {selectedTrip && (
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <CalendarRange className="h-3.5 w-3.5" />
+                      <span>
+                        {selectedTrip.startDate ? new Date(selectedTrip.startDate).toLocaleDateString() : "TBD"} -{" "}
+                        {selectedTrip.endDate ? new Date(selectedTrip.endDate).toLocaleDateString() : "TBD"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                      Select Trip
+                    </span>
+                    <select
+                      value={selectedTripId}
+                      onChange={(event) => setSelectedTripId(event.target.value)}
+                      className="h-10 min-w-[220px] rounded-lg border border-border bg-background px-3 text-sm font-medium outline-none transition focus:border-primary"
+                    >
+                      <option value="ALL">All Active Trips</option>
+                      {safeTrips.map((trip) => (
+                        <option key={trip.tripId} value={trip.tripId}>
+                          {trip.title} ({Array.isArray(trip.tourists) ? trip.tourists.length : 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2 pt-5 sm:pt-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-green-500" />
+                      <span className="text-[10px] font-medium">Safe</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                      <span className="text-[10px] font-medium">Warning</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-red-500" />
+                      <span className="text-[10px] font-medium">Panic</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full bg-slate-500" />
+                      <span className="text-[10px] font-medium">Signal Lost</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0 relative">
-              <LiveMap tourists={Array.isArray(selectedTripData?.tourists) ? selectedTripData.tourists : []} />
+            <CardContent className="flex flex-1 flex-col gap-4 p-4">
+              <div className="flex-1">
+                <LiveMap tourists={selectedTripData.tourists} nowMs={signalNowMs} />
+              </div>
+              <div className="space-y-3 border-t border-border/60 pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Tourist Signal Status</p>
+                    <p className="text-xs text-muted-foreground">
+                      Grey markers and badges indicate the last known location after the signal went stale.
+                    </p>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedTripData.tourists.length} tourist{selectedTripData.tourists.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="max-h-[180px] overflow-y-auto pr-1">
+                  <TouristSignalList tourists={selectedTripData.tourists} nowMs={signalNowMs} />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
+
         <div className="col-span-3 h-full">
-          <AlertsFeed alerts={Array.isArray(selectedTripData?.alerts) ? selectedTripData.alerts : []} />
+          <AlertsFeed alerts={selectedTripData.alerts} />
         </div>
       </div>
     </div>
   )
 }
 
-function MetricCard({ title, value, icon }: { title: string, value: string, icon: React.ReactNode }) {
+function MetricCard({ title, value, icon }: { title: string; value: string; icon: ReactNode }) {
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

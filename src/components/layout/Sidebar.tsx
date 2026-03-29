@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { ShieldAlert, BarChart3, Fingerprint, Map, Users, Settings, LogOut, Home } from "lucide-react"
+import { ShieldAlert, BarChart3, Fingerprint, Map, Users, LogOut, Home, Route } from "lucide-react"
 import { usePathname } from "next/navigation"
 
 export function Sidebar() {
@@ -19,6 +19,7 @@ export function Sidebar() {
         <NavItem href="/verify" icon={<Fingerprint className="h-5 w-5" />} label="Verify Tourist ID" active={pathname === "/verify"} />
         <div className="pt-4 pb-2 px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Fleet Management</div>
         <NavItem href="/map" icon={<Map className="h-5 w-5" />} label="Live Map" active={pathname === "/map"} />
+        <NavItem href="/trips" icon={<Route className="h-5 w-5" />} label="Trip Management" active={pathname === "/trips"} />
         <NavItem href="/tourists" icon={<Users className="h-5 w-5" />} label="Tourists" active={pathname === "/tourists"} />
       </nav>
 
