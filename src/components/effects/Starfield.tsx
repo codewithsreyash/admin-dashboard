@@ -30,18 +30,18 @@ type StarPoint = {
  */
 export default function Starfield(props: StarfieldProps) {
   const {
-    stars = 800,
-    speed = 2,
-    spread = 6,
-    focal = 2,
-    twinkle = 0.35,
-    trail = 0.8,
-    size = 1.5,
-    fadeInRange = 5,
+    stars = 600,
+    speed = 1.2,
+    spread = 8,
+    focal = 2.5,
+    twinkle = 0.4,
+    trail = 0.85,
+    size = 1.2,
+    fadeInRange = 6,
     reverseFly = true,
-    followCursor = false,
+    followCursor = true,
     background = "transparent",
-    starColor = "#ffffff",
+    starColor = "#6ee7b7",
   } = props
 
   const canvasRef = useRef<HTMLCanvasElement>(null)

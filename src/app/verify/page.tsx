@@ -23,22 +23,27 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-12 p-8 animate-in slide-in-from-bottom duration-500">
-      <div className="space-y-4 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <Fingerprint className="h-10 w-10 text-primary" />
+    <div className="mx-auto max-w-4xl space-y-12 p-8 pt-12 animate-fade-in">
+      <div className="space-y-6 text-center">
+        <div className="mx-auto relative">
+          <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full scale-150" />
+          <div className="relative flex h-20 w-20 mx-auto items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-xl shadow-primary/20">
+            <Fingerprint className="h-10 w-10 text-primary" />
+          </div>
         </div>
-        <div className="space-y-1">
-          <h2 className="text-4xl font-black uppercase italic tracking-tighter">Identity Verification Portal</h2>
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground">
+        <div className="space-y-3">
+          <h2 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+            Identity Verification
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
             Secure Mock-Chain Validation Node: active-04
           </p>
         </div>
       </div>
 
-      <Card className="border-primary/20 bg-muted/5 shadow-2xl">
-        <CardContent className="space-y-6 pt-6 text-center">
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">
+      <Card className="glass-card-elevated">
+        <CardContent className="space-y-8 pt-8 pb-8 text-center">
+          <p className="mx-auto max-w-md text-sm text-muted-foreground leading-relaxed">
             Input a tourist secure digital ID to verify its cryptographic integrity against the mock blockchain ledger.
           </p>
           <div className="mx-auto flex max-w-lg gap-4">
@@ -46,62 +51,66 @@ export default function VerifyPage() {
               value={inputId}
               onChange={(event) => setInputId(event.target.value)}
               placeholder="Paste Tourist ID (e.g. TX-XYZ...)"
-              className="h-10 flex-1 rounded-lg border-2 border-primary/20 bg-background px-4 font-mono text-sm outline-none transition-all focus:border-primary"
+              className="h-12 flex-1 rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-5 font-mono text-sm outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
             />
-            <Button disabled={loading || !inputId} onClick={handleVerify} className="h-10 font-bold uppercase tracking-wider">
-              {loading ? <Loader2 className="animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
-              {loading ? "Decrypting..." : "Verify ID"}
+            <Button 
+              disabled={loading || !inputId} 
+              onClick={handleVerify} 
+              className="h-12 px-6 rounded-xl font-semibold"
+            >
+              {loading ? <Loader2 className="animate-spin mr-2" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
+              {loading ? "Verifying..." : "Verify ID"}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {verified && (
-        <div className="animate-in zoom-in duration-300">
-          <div className="relative overflow-hidden rounded-2xl border-2 border-green-500/30 bg-green-500/10 p-8">
-            <div className="absolute right-0 top-0 p-4 opacity-10">
-              <ShieldCheck size={120} className="text-green-500" />
+        <div className="animate-slide-up">
+          <div className="relative overflow-hidden glass-card-elevated rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 p-8">
+            <div className="absolute right-0 top-0 p-6 opacity-5">
+              <ShieldCheck size={140} className="text-emerald-500" />
             </div>
 
             <div className="relative z-10 flex items-start gap-6">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 shadow-[0_0_30px_rgba(34,197,94,0.4)]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-xl shadow-emerald-500/30">
                 <ShieldCheck className="h-8 w-8 text-white" />
               </div>
               <div className="flex-1 space-y-6">
-                <div>
-                  <h3 className="text-2xl font-black uppercase italic text-green-500">Match Confirmed</h3>
-                  <p className="text-xs font-bold uppercase italic tracking-widest text-muted-foreground">
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold text-emerald-400">Match Confirmed</h3>
+                  <p className="text-xs text-muted-foreground">
                     Secure blockchain integrity check successful
                   </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="space-y-2 p-4 rounded-xl bg-secondary/30 backdrop-blur-xl border border-border/30">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       System Hash (Mock-Chain)
                     </p>
-                    <p className="truncate rounded bg-background/50 p-2 font-mono text-xs">
+                    <p className="truncate rounded-lg bg-background/50 p-3 font-mono text-xs text-foreground/80">
                       SHA256: 4f1a23b9d0e8c7f6e5...f4c3b2a1
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <div className="space-y-2 p-4 rounded-xl bg-secondary/30 backdrop-blur-xl border border-border/30">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       Passport Hash (Physical)
                     </p>
-                    <p className="truncate rounded bg-background/50 p-2 font-mono text-xs">
+                    <p className="truncate rounded-lg bg-background/50 p-3 font-mono text-xs text-foreground/80">
                       0x7f6e5d4c3b2a1...9c8b7a6e5d4
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 pt-4 text-xs font-bold text-muted-foreground">
-                  <span className="rounded-full border border-green-500/30 bg-green-500/20 px-3 py-1 font-mono text-green-500">
+                <div className="flex flex-wrap items-center gap-3 pt-4">
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-4 py-1.5 font-mono text-xs text-emerald-400 font-medium">
                     ENCRYPTED
                   </span>
-                  <span className="rounded-full border border-green-500/30 bg-green-500/20 px-3 py-1 font-mono text-green-500">
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-4 py-1.5 font-mono text-xs text-emerald-400 font-medium">
                     NON-MUTABLE
                   </span>
-                  <span className="rounded-full border border-green-500/30 bg-green-500/20 px-3 py-1 font-mono text-green-500">
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-4 py-1.5 font-mono text-xs text-emerald-400 font-medium">
                     TIMESTAMPED
                   </span>
                 </div>

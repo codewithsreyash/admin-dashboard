@@ -299,53 +299,64 @@ export function TripManagementPanel() {
   }
 
   return (
-    <div className="space-y-6 p-8 pt-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Trip Management</h1>
-          <p className="text-sm text-muted-foreground">
+    <div className="space-y-8 p-8 pt-8 animate-fade-in">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+            Trip Management
+          </h1>
+          <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
             Create operational trips, review availability, and assign registered tourists from one control surface.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="inline-flex h-9 items-center rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="group inline-flex h-11 items-center rounded-2xl border border-border/50 bg-secondary/50 backdrop-blur-xl px-6 text-sm font-medium transition-all duration-300 hover:bg-primary/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10"
           >
+            <svg className="mr-2 h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
             Return to Dashboard
           </Link>
         </div>
       </div>
 
       {error && (
-        <div className="flex gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>{error}</div>
+        <div className="flex gap-4 rounded-2xl border border-destructive/30 bg-destructive/10 backdrop-blur-xl p-5 shadow-lg shadow-destructive/5">
+          <div className="p-2 rounded-xl bg-destructive/20">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+          </div>
+          <div className="text-sm text-destructive">{error}</div>
         </div>
       )}
 
       {successMessage && (
-        <div className="flex gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>{successMessage}</div>
+        <div className="flex gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-xl p-5 shadow-lg shadow-emerald-500/5">
+          <div className="p-2 rounded-xl bg-emerald-500/20">
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+          </div>
+          <div className="text-sm text-emerald-400">{successMessage}</div>
         </div>
       )}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]">
-        <Card className="border shadow-sm">
+        <Card className="glass-card-elevated">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-4 w-4 text-primary" />
+            <CardTitle className="flex items-center gap-3 text-lg">
+              <div className="p-2 rounded-xl bg-primary/15 border border-primary/20">
+                <Plus className="h-4 w-4 text-primary" />
+              </div>
               Create New Trip
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-2 leading-relaxed">
               New trips immediately become available to the live-map and assignment tools once created.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" onSubmit={handleCreateTrip}>
+            <form className="space-y-5" onSubmit={handleCreateTrip}>
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                   Trip Name
                 </label>
                 <input
@@ -353,12 +364,12 @@ export function TripManagementPanel() {
                   value={formState.name}
                   onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
                   placeholder="Golden Triangle Escort"
-                  className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none ring-0 transition focus:border-primary"
+                  className="h-12 w-full rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-4 text-sm outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                   Destination
                 </label>
                 <input
@@ -366,13 +377,13 @@ export function TripManagementPanel() {
                   value={formState.destination}
                   onChange={(event) => setFormState((current) => ({ ...current, destination: event.target.value }))}
                   placeholder="Delhi, Agra, Jaipur"
-                  className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none ring-0 transition focus:border-primary"
+                  className="h-12 w-full rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-4 text-sm outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
                 />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                     Start Date
                   </label>
                   <input
@@ -380,11 +391,11 @@ export function TripManagementPanel() {
                     type="date"
                     value={formState.startDate}
                     onChange={(event) => setFormState((current) => ({ ...current, startDate: event.target.value }))}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none ring-0 transition focus:border-primary"
+                    className="h-12 w-full rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-4 text-sm outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                     End Date
                   </label>
                   <input
@@ -392,48 +403,53 @@ export function TripManagementPanel() {
                     type="date"
                     value={formState.endDate}
                     onChange={(event) => setFormState((current) => ({ ...current, endDate: event.target.value }))}
-                    className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none ring-0 transition focus:border-primary"
+                    className="h-12 w-full rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-4 text-sm outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
                   />
                 </div>
               </div>
 
-              <Button type="submit" disabled={isCreatingTrip} className="h-11 w-full">
+              <Button type="submit" disabled={isCreatingTrip} className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg hover:shadow-primary/20 transition-all duration-300">
                 {isCreatingTrip ? "Creating trip..." : "Create Trip"}
               </Button>
             </form>
           </CardContent>
         </Card>
 
-        <Card className="border shadow-sm">
+        <Card className="glass-card-elevated">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Route className="h-4 w-4 text-primary" />
+            <CardTitle className="flex items-center gap-3 text-lg">
+              <div className="p-2 rounded-xl bg-accent/15 border border-accent/20">
+                <Route className="h-4 w-4 text-accent" />
+              </div>
               Fleet Snapshot
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-2 leading-relaxed">
               Quick operational summary from the same deduplicated trip data the dashboard uses.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Active Trips</p>
-                <p className="mt-2 text-3xl font-semibold text-emerald-100">{activeTrips.length}</p>
+            <div className="grid gap-5 md:grid-cols-3">
+              <div className="group rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:border-emerald-500/30">
+                <p className="text-[10px] uppercase tracking-[0.15em] text-emerald-400/80 font-semibold">Active Trips</p>
+                <p className="mt-3 text-3xl font-bold text-emerald-400">{activeTrips.length}</p>
               </div>
-              <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-sky-200/80">Registered Tourists</p>
-                <p className="mt-2 text-3xl font-semibold text-sky-100">{tourists.length}</p>
+              <div className="group rounded-2xl border border-sky-500/20 bg-gradient-to-br from-sky-500/15 to-sky-500/5 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/10 hover:border-sky-500/30">
+                <p className="text-[10px] uppercase tracking-[0.15em] text-sky-400/80 font-semibold">Registered Tourists</p>
+                <p className="mt-3 text-3xl font-bold text-sky-400">{tourists.length}</p>
               </div>
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-amber-200/80">Unassigned</p>
-                <p className="mt-2 text-3xl font-semibold text-amber-100">{unassignedTourists.length}</p>
+              <div className="group rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/15 to-amber-500/5 p-5 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10 hover:border-amber-500/30">
+                <p className="text-[10px] uppercase tracking-[0.15em] text-amber-400/80 font-semibold">Unassigned</p>
+                <p className="mt-3 text-3xl font-bold text-amber-400">{unassignedTourists.length}</p>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {trips.length === 0 && !isLoading && (
-                <div className="rounded-2xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-                  No trips exist yet. Create the first trip to begin assignment.
+                <div className="col-span-full rounded-2xl border border-dashed border-border/50 p-8 text-center backdrop-blur-xl">
+                  <div className="p-4 rounded-2xl bg-muted/20 border border-border/30 inline-block mb-4">
+                    <Route className="h-8 w-8 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No trips exist yet. Create the first trip to begin assignment.</p>
                 </div>
               )}
 
@@ -450,25 +466,25 @@ export function TripManagementPanel() {
                         setSelectedTripId(trip.tripId)
                       }
                     }}
-                    className={`rounded-2xl border p-4 text-left transition ${
+                    className={`group rounded-2xl border p-5 text-left transition-all duration-300 backdrop-blur-xl ${
                       isSelected
-                        ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
-                        : "border-border bg-background/80 hover:border-primary/40 hover:bg-muted/40"
-                    } ${!isActive ? "opacity-80" : ""}`}
+                        ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
+                        : "border-border/30 bg-secondary/20 hover:border-primary/30 hover:bg-primary/5 hover:shadow-lg"
+                    } ${!isActive ? "opacity-70" : ""}`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="space-y-1">
                         <p className="text-sm font-semibold">{trip.title}</p>
                         <p className="text-xs text-muted-foreground">{trip.destination || "Destination pending"}</p>
                       </div>
-                      <Badge className={`border ${getStatusClasses(trip.status)}`}>{trip.status || "Unknown"}</Badge>
+                      <Badge className={`border shadow-sm ${getStatusClasses(trip.status)}`}>{trip.status || "Unknown"}</Badge>
                     </div>
-                    <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
+                    <div className="mt-5 space-y-2.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2.5">
                         <CalendarRange className="h-3.5 w-3.5" />
                         <span>{formatDateRange(trip)}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <Users className="h-3.5 w-3.5" />
                         <span>{trip.touristCount ?? trip.tourists.length} tourists assigned</span>
                       </div>

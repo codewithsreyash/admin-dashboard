@@ -46,22 +46,33 @@ export function AlertsFeed({ alerts }: { alerts: DashboardAlert[] }) {
 
   return (
     <>
-      <Card className="h-full border-destructive/20 shadow-xl overflow-hidden flex flex-col uppercase">
-        <CardHeader className="bg-destructive/10 pb-4 border-b">
+      <Card className="h-full glass-card-elevated overflow-hidden flex flex-col">
+        <CardHeader className="bg-gradient-to-r from-destructive/10 to-transparent pb-5 border-b border-destructive/20">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2 font-black italic tracking-tighter">
-              <BellRing className="h-5 w-5 text-destructive animate-pulse" />
+            <CardTitle className="text-lg flex items-center gap-3 font-bold tracking-tight">
+              <div className="p-2 rounded-xl bg-destructive/15 border border-destructive/20">
+                <BellRing className="h-4 w-4 text-destructive animate-pulse" />
+              </div>
               Live Security Feed
             </CardTitle>
-            <Badge variant="destructive" className="animate-pulse font-bold">{safeAlerts.length} Incidents</Badge>
+            <Badge variant="destructive" className="px-3 py-1.5 font-semibold shadow-lg shadow-destructive/20">
+              {safeAlerts.length} Incidents
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-0">
-          <div className="divide-y divide-border/50">
+          <div className="divide-y divide-border/20">
             {safeAlerts.length === 0 && (
-              <div className="p-12 text-center text-muted-foreground space-y-4">
-                <div className="flex justify-center"><ShieldAlert className="h-12 w-12 opacity-10" /></div>
-                <p className="text-xs font-bold tracking-widest">Awaiting System Pings...</p>
+              <div className="p-16 text-center text-muted-foreground space-y-5">
+                <div className="flex justify-center">
+                  <div className="p-6 rounded-2xl bg-muted/20 border border-border/30">
+                    <ShieldAlert className="h-10 w-10 opacity-20" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">All Clear</p>
+                  <p className="text-xs text-muted-foreground/70">Awaiting system pings...</p>
+                </div>
               </div>
             )}
             {safeAlerts.map((alert, index) => {
@@ -71,30 +82,46 @@ export function AlertsFeed({ alerts }: { alerts: DashboardAlert[] }) {
               const lat = typeof alert?.location?.lat === "number" ? alert.location.lat : null
               const lng = typeof alert?.location?.lng === "number" ? alert.location.lng : null
               const alertKey = typeof alert?.alertId === "string" ? alert.alertId : `${touristId}-${index}`
+              const isPanic = alertType === "Panic"
 
               return (
-                <div key={alertKey} className={`p-4 transition-colors flex gap-4 flex-col ${alertType === 'Panic' ? 'bg-destructive/10 animate-pulse border-l-4 border-red-600' : 'hover:bg-muted/50 border-l-4 border-transparent'}`}>
+                <div 
+                  key={alertKey} 
+                  className={`p-5 transition-all duration-300 flex gap-4 flex-col group ${
+                    isPanic 
+                      ? "bg-gradient-to-r from-destructive/15 to-transparent border-l-4 border-destructive" 
+                      : "hover:bg-muted/20 border-l-4 border-transparent hover:border-warning/50"
+                  }`}
+                >
                   <div className="flex gap-4">
-                    <div className="mt-1">
-                      {alertType === "Panic" && <ShieldAlert className="h-5 w-5 text-red-500 animate-bounce" />}
-                      {alertType !== "Panic" && <NavigationOff className="h-5 w-5 text-orange-500" />}
+                    <div className={`p-2.5 rounded-xl ${isPanic ? "bg-destructive/20 border border-destructive/30" : "bg-warning/10 border border-warning/20"}`}>
+                      {isPanic ? (
+                        <ShieldAlert className="h-4 w-4 text-destructive animate-pulse" />
+                      ) : (
+                        <NavigationOff className="h-4 w-4 text-warning" />
+                      )}
                     </div>
-                    <div className="flex-1 space-y-1">
+                    <div className="flex-1 space-y-2">
                       <div className="flex justify-between items-start">
-                        <p className="text-xs font-black leading-none">[{alertType}] {formatId(touristId, 8)}</p>
-                        <Badge variant="outline" className="text-[9px] px-1 h-4">{tripId}</Badge>
+                        <p className="text-xs font-bold leading-none flex items-center gap-2">
+                          <span className={isPanic ? "text-destructive" : "text-warning"}>[{alertType}]</span>
+                          <span className="text-foreground">{formatId(touristId, 8)}</span>
+                        </p>
+                        <Badge variant="outline" className="text-[9px] px-2 py-0.5 bg-muted/30 border-border/50">{tripId}</Badge>
                       </div>
-                      <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-1 font-mono">
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground font-mono">
                         <span>{formatCoordinates(lat, lng, 4)}</span>
                         <span>{formatTimestamp(alert?.timestamp)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 pl-9">
-                    <button className="text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-1 rounded border border-green-500/20 hover:bg-green-500/20 transition-all uppercase">Verify</button>
+                  <div className="flex gap-3 pl-12">
+                    <button className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all duration-300 uppercase tracking-wide">
+                      Verify
+                    </button>
                     <button 
                       onClick={() => setSelectedFir(alert)}
-                      className="text-[10px] bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-all font-black uppercase tracking-tighter"
+                      className="text-[10px] bg-gradient-to-r from-destructive to-destructive/80 text-white px-4 py-1.5 rounded-lg hover:shadow-lg hover:shadow-destructive/20 transition-all duration-300 font-bold uppercase tracking-wide"
                     >
                       Generate E-FIR
                     </button>
@@ -109,80 +136,93 @@ export function AlertsFeed({ alerts }: { alerts: DashboardAlert[] }) {
 
       {/* Official E-FIR Modal Implementation */}
       {selectedFir && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white max-w-2xl w-full rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-gray-900 text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-              <div className="flex items-center gap-3">
-                <div className="bg-white p-1 rounded">
-                   <div className="w-8 h-8 bg-blue-900 flex items-center justify-center text-xs font-bold text-white border border-gray-400">POLICE</div>
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-xl z-50 flex items-center justify-center p-6 animate-fade-in">
+          <div className="bg-card/95 backdrop-blur-2xl max-w-2xl w-full rounded-3xl shadow-2xl overflow-hidden border border-border/50 animate-slide-up">
+            <div className="bg-gradient-to-r from-destructive/20 to-destructive/5 p-6 flex justify-between items-center border-b border-destructive/20">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-2xl bg-destructive/20 border border-destructive/30">
+                   <ShieldAlert className="w-6 h-6 text-destructive" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black tracking-tighter italic">E-FIRST INFORMATION REPORT</h2>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">SafeTravel Digital Verification System v1.0</p>
+                  <h2 className="text-xl font-bold tracking-tight">E-First Information Report</h2>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-1">SafeTravel Digital Verification System</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedFir(null)} className="text-gray-400 hover:text-white">✕</button>
+              <button 
+                onClick={() => setSelectedFir(null)} 
+                className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-foreground transition-all duration-300"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
             
-            <div className="p-8 space-y-6 font-serif bg-[rgb(250,250,250)] border-l-8 border-r-8 border-gray-100">
-              <div className="flex justify-between border-b pb-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-gray-500">Incident Hash ID</p>
-                  <p className="text-sm font-mono font-bold">{getIncidentHash(selectedFir)}</p>
+            <div className="p-8 space-y-6">
+              <div className="flex justify-between border-b border-border/30 pb-5">
+                <div className="space-y-2">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Incident Hash ID</p>
+                  <p className="text-sm font-mono font-bold text-primary">{getIncidentHash(selectedFir)}</p>
                 </div>
-                <div className="space-y-1 text-right">
-                  <p className="text-[10px] uppercase font-bold text-gray-500">Date of Incident</p>
+                <div className="space-y-2 text-right">
+                  <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Date of Incident</p>
                   <p className="text-sm font-bold font-mono">{formatDateTime(selectedFir?.timestamp)}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-8">
-                <Card className="p-4 bg-white border-dashed border-2">
-                  <h3 className="text-[10px] uppercase font-bold text-blue-600 mb-3 underline">Victim Identification</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-gray-700 font-bold">Tourist ID:</span>
-                      <span className="font-mono text-blue-600">{formatId(selectedFir?.touristId, 12)}</span>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20">
+                  <h3 className="text-[10px] uppercase font-bold text-primary mb-4 tracking-wider">Victim Identification</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">Tourist ID:</span>
+                      <span className="font-mono text-primary font-semibold">{formatId(selectedFir?.touristId, 12)}</span>
                     </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-gray-700 font-bold">Trip ID:</span>
-                      <span className="font-bold">{typeof selectedFir?.tripId === "string" ? selectedFir.tripId : "DEFAULT"}</span>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground font-medium">Trip ID:</span>
+                      <span className="font-semibold">{typeof selectedFir?.tripId === "string" ? selectedFir.tripId : "DEFAULT"}</span>
                     </div>
-                    <p className="text-xs text-gray-500 italic mt-2">*Verified via Blockchain Hash</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-3">*Verified via Blockchain Hash</p>
                   </div>
-                </Card>
+                </div>
 
-                <Card className="p-4 bg-white border-dashed border-2">
-                  <h3 className="text-[10px] uppercase font-bold text-red-600 mb-3 underline">Incident Location</h3>
-                  <div className="space-y-2">
-                    <p className="text-xs text-gray-700 font-bold tracking-tight">Coordinates:</p>
-                    <p className="text-sm font-mono bg-red-50 p-1 border border-red-100 rounded text-red-700">{formatCoordinates(selectedFir?.location?.lat, selectedFir?.location?.lng, 6)}</p>
-                    <p className="text-xs text-gray-500 italic mt-2">*Real-Time GPS Tag</p>
+                <div className="p-5 rounded-2xl bg-destructive/5 border border-destructive/20">
+                  <h3 className="text-[10px] uppercase font-bold text-destructive mb-4 tracking-wider">Incident Location</h3>
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground font-medium">Coordinates:</p>
+                    <p className="text-sm font-mono bg-destructive/10 p-2.5 border border-destructive/20 rounded-xl text-destructive font-semibold">{formatCoordinates(selectedFir?.location?.lat, selectedFir?.location?.lng, 6)}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-3">*Real-Time GPS Tag</p>
                   </div>
-                </Card>
+                </div>
               </div>
 
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
-                <h3 className="text-[10px] uppercase font-bold text-yellow-800 mb-2">Offense Summary / Alert Type</h3>
-                <p className="text-lg font-black text-gray-900 uppercase tracking-tighter">[{typeof selectedFir?.type === "string" ? selectedFir.type : "Unknown"}]</p>
-                <p className="text-xs text-yellow-900 mt-2 font-medium">Automatic system trigger generated by SafeCity Anomaly Engine. Emergency services notified immediately.</p>
+              <div className="p-5 bg-warning/10 border border-warning/20 rounded-2xl">
+                <h3 className="text-[10px] uppercase font-bold text-warning mb-3 tracking-wider">Offense Summary / Alert Type</h3>
+                <p className="text-xl font-bold uppercase tracking-tight">[{typeof selectedFir?.type === "string" ? selectedFir.type : "Unknown"}]</p>
+                <p className="text-xs text-muted-foreground mt-3 leading-relaxed">Automatic system trigger generated by SafeCity Anomaly Engine. Emergency services notified immediately.</p>
               </div>
 
-              <div className="flex gap-4 pt-4 border-t-2 border-gray-200">
+              <div className="flex gap-4 pt-4">
                 <button 
                   onClick={() => alert('PDF report generated and stored.')}
-                  className="flex-1 bg-gray-800 text-white font-bold py-3 rounded hover:bg-black transition-all flex items-center justify-center gap-2 uppercase text-xs"
+                  className="flex-1 bg-secondary hover:bg-secondary/80 font-semibold py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 text-sm hover:shadow-lg"
                 >
-                  📥 Download Digitally Signed PDF
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download Signed PDF
                 </button>
                 <button 
                   onClick={() => {
                     alert('FIR Submitted to Central Station');
                     setSelectedFir(null);
                   }}
-                  className="flex-1 bg-red-600 text-white font-bold py-3 rounded hover:bg-red-700 transition-all flex items-center justify-center gap-2 uppercase text-xs animate-pulse"
+                  className="flex-1 bg-gradient-to-r from-destructive to-destructive/80 text-destructive-foreground font-semibold py-4 rounded-2xl hover:shadow-xl hover:shadow-destructive/20 transition-all duration-300 flex items-center justify-center gap-3 text-sm"
                 >
-                  ⚡ Submit to Police Station
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Submit to Police Station
                 </button>
               </div>
             </div>

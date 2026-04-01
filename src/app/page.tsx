@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { ReactNode } from "react"
 import type {
   DashboardAlert,
   DashboardAlertEvent,
@@ -360,82 +359,127 @@ export default function Dashboard() {
   }, [selectedTripData.tourists, signalNowMs])
 
   return (
-    <div className="flex-1 space-y-6 p-8 pt-6">
+    <div className="flex-1 space-y-8 p-8 pt-8 animate-fade-in">
       {error && (
-        <div className="flex gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+        <div className="flex gap-4 rounded-2xl border border-destructive/30 bg-destructive/10 backdrop-blur-xl p-5 shadow-lg shadow-destructive/5">
+          <div className="p-2 rounded-xl bg-destructive/20">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+          </div>
           <div>
             <p className="text-sm font-semibold text-destructive">Connection Error</p>
-            <p className="text-xs text-destructive/80">{error}</p>
+            <p className="text-xs text-destructive/70 mt-1">{error}</p>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">System Overview</h2>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-2">
+          <h2 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+            System Overview
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-lg leading-relaxed">
             Monitoring live tourist security, trip assignments, and incident traffic from deduplicated backend data.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm">
-            <Wifi
-              className={`h-4 w-4 ${
-                socketStatus === "Live"
-                  ? "text-emerald-500"
-                  : socketStatus === "Connecting" || socketStatus === "Reconnecting"
-                    ? "text-amber-500"
-                    : "text-destructive"
-              }`}
-            />
-            <span>{socketStatus === "Live" ? "Realtime Connected" : socketStatus === "Reconnecting" ? "Reconnecting..." : socketStatus}</span>
+        <div className="flex items-center gap-4">
+          <div className={`inline-flex h-11 items-center gap-3 rounded-2xl border px-5 text-sm backdrop-blur-xl transition-all duration-300 ${
+            socketStatus === "Live" 
+              ? "border-primary/30 bg-primary/10 shadow-lg shadow-primary/10" 
+              : socketStatus === "Connecting" || socketStatus === "Reconnecting"
+                ? "border-warning/30 bg-warning/10"
+                : "border-destructive/30 bg-destructive/10"
+          }`}>
+            <div className="relative">
+              <Wifi
+                className={`h-4 w-4 ${
+                  socketStatus === "Live"
+                    ? "text-primary"
+                    : socketStatus === "Connecting" || socketStatus === "Reconnecting"
+                      ? "text-warning"
+                      : "text-destructive"
+                }`}
+              />
+              {socketStatus === "Live" && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
+              )}
+            </div>
+            <span className="font-medium">{socketStatus === "Live" ? "Realtime Connected" : socketStatus === "Reconnecting" ? "Reconnecting..." : socketStatus}</span>
           </div>
 
           <Link
             href="/trips"
-            className="inline-flex h-10 items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted"
+            className="group inline-flex h-11 items-center justify-center rounded-2xl border border-border/50 bg-secondary/50 backdrop-blur-xl px-6 text-sm font-medium transition-all duration-300 hover:bg-primary/10 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10"
           >
             Open Trip Management
+            <svg className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Live Tourists" value={isLoading ? "--" : String(stats.active)} icon={<Users />} />
-        <MetricCard title="Active Trips" value={isLoading ? "--" : String(stats.trips)} icon={<Route />} />
-        <MetricCard title="System Pings / min" value={socketStatus === "Live" ? "Socket Live" : "Syncing"} icon={<Activity />} />
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard 
+          title="Live Tourists" 
+          value={isLoading ? "--" : String(stats.active)} 
+          icon={<Users />} 
+          color="primary"
+          delay={0}
+        />
+        <MetricCard 
+          title="Active Trips" 
+          value={isLoading ? "--" : String(stats.trips)} 
+          icon={<Route />} 
+          color="accent"
+          delay={1}
+        />
+        <MetricCard 
+          title="System Status" 
+          value={socketStatus === "Live" ? "Online" : "Syncing"} 
+          icon={<Activity />} 
+          color={socketStatus === "Live" ? "success" : "warning"}
+          delay={2}
+        />
         <MetricCard
           title="Active Incidents"
           value={isLoading ? "--" : String(stats.alerts)}
           icon={
             <ShieldAlert
-              className={!isLoading && stats.alerts > 0 ? "animate-pulse text-destructive" : "text-muted-foreground"}
+              className={!isLoading && stats.alerts > 0 ? "animate-pulse" : ""}
             />
           }
+          color={!isLoading && stats.alerts > 0 ? "destructive" : "muted"}
+          delay={3}
         />
       </div>
 
-      <div className="grid h-[680px] gap-4 lg:grid-cols-7">
+      <div className="grid h-[720px] gap-6 lg:grid-cols-7">
         <div className="col-span-4 h-full">
-          <Card className="flex h-full flex-col overflow-hidden border shadow-sm">
-            <CardHeader className="border-b bg-muted/5 py-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                <div className="space-y-2">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    Live Map Tracking
+          <Card className="flex h-full flex-col overflow-hidden glass-card-elevated">
+            <CardHeader className="border-b border-border/30 bg-gradient-to-r from-primary/5 to-transparent py-5">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <div className="space-y-3">
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    <div className="p-2 rounded-xl bg-primary/15 border border-primary/20">
+                      <MapPin className="h-4 w-4 text-primary" />
+                    </div>
+                    <span>Live Map Tracking</span>
                   </CardTitle>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
                     {selectedTrip
                       ? `${selectedTrip.title}${selectedTrip.destination ? ` - ${selectedTrip.destination}` : ""}`
                       : "Viewing all active trip traffic and deduplicated live tourists."}
                   </p>
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                    <span>{signalSummary.live} live</span>
-                    <span>{signalSummary.stale} signal lost</span>
-                    <span>Stale after {Math.round(STALE_SIGNAL_THRESHOLD_MS / 60000)} minutes without a ping</span>
+                  <div className="flex flex-wrap items-center gap-4 text-[11px]">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      {signalSummary.live} live
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/50 text-muted-foreground">
+                      {signalSummary.stale} signal lost
+                    </span>
+                    <span className="text-muted-foreground/70">Stale after {Math.round(STALE_SIGNAL_THRESHOLD_MS / 60000)} min</span>
                   </div>
                   {selectedTrip && (
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -448,15 +492,15 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
                       Select Trip
                     </span>
                     <select
                       value={selectedTripId}
                       onChange={(event) => setSelectedTripId(event.target.value)}
-                      className="h-10 min-w-[220px] rounded-lg border border-border bg-background px-3 text-sm font-medium outline-none transition focus:border-primary"
+                      className="h-11 min-w-[220px] rounded-xl border border-border/50 bg-secondary/30 backdrop-blur-xl px-4 text-sm font-medium outline-none transition-all duration-300 focus:border-primary/50 focus:ring-2 focus:ring-primary/10 hover:bg-secondary/50"
                     >
                       <option value="ALL">All Active Trips</option>
                       {safeTrips.map((trip) => (
@@ -467,44 +511,32 @@ export default function Dashboard() {
                     </select>
                   </div>
 
-                  <div className="flex gap-2 pt-5 sm:pt-0">
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <span className="text-[10px] font-medium">Safe</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                      <span className="text-[10px] font-medium">Warning</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-red-500" />
-                      <span className="text-[10px] font-medium">Panic</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="h-2 w-2 rounded-full bg-slate-500" />
-                      <span className="text-[10px] font-medium">Signal Lost</span>
-                    </div>
+                  <div className="flex gap-3 pt-6 sm:pt-0">
+                    <StatusLegend color="bg-emerald-500" label="Safe" />
+                    <StatusLegend color="bg-amber-500" label="Warning" />
+                    <StatusLegend color="bg-red-500" label="Panic" />
+                    <StatusLegend color="bg-slate-500" label="Lost" />
                   </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex flex-1 flex-col gap-4 p-4">
+            <CardContent className="flex flex-1 flex-col gap-4 p-5">
               <div className="flex-1">
                 <LiveMap tourists={selectedTripData.tourists} nowMs={signalNowMs} />
               </div>
-              <div className="space-y-3 border-t border-border/60 pt-4">
+              <div className="space-y-4 border-t border-border/30 pt-5">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="space-y-1">
                     <p className="text-sm font-semibold text-foreground">Tourist Signal Status</p>
-                    <p className="text-xs text-muted-foreground">
-                      Grey markers and badges indicate the last known location after the signal went stale.
+                    <p className="text-xs text-muted-foreground/80">
+                      Grey markers indicate last known location after signal went stale.
                     </p>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="px-3 py-1.5 rounded-full bg-muted/30 text-xs font-medium text-muted-foreground">
                     {selectedTripData.tourists.length} tourist{selectedTripData.tourists.length === 1 ? "" : "s"}
                   </div>
                 </div>
-                <div className="max-h-[180px] overflow-y-auto pr-1">
+                <div className="max-h-[180px] overflow-y-auto pr-1 scrollbar-thin">
                   <TouristSignalList tourists={selectedTripData.tourists} nowMs={signalNowMs} />
                 </div>
               </div>
@@ -520,15 +552,51 @@ export default function Dashboard() {
   )
 }
 
-function MetricCard({ title, value, icon }: { title: string; value: string; icon: ReactNode }) {
+function StatusLegend({ color, label }: { color: string; label: string }) {
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors cursor-default">
+      <div className={`h-2 w-2 rounded-full ${color} shadow-sm`} />
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+    </div>
+  )
+}
+
+function MetricCard({ 
+  title, 
+  value, 
+  icon, 
+  color = "primary",
+  delay = 0 
+}: { 
+  title: string
+  value: string
+  icon: React.ReactNode
+  color?: "primary" | "accent" | "destructive" | "success" | "warning" | "muted"
+  delay?: number
+}) {
+  const colorClasses = {
+    primary: "from-primary/20 to-primary/5 border-primary/20 text-primary",
+    accent: "from-accent/20 to-accent/5 border-accent/20 text-accent",
+    destructive: "from-destructive/20 to-destructive/5 border-destructive/20 text-destructive",
+    success: "from-emerald-500/20 to-emerald-500/5 border-emerald-500/20 text-emerald-500",
+    warning: "from-amber-500/20 to-amber-500/5 border-amber-500/20 text-amber-500",
+    muted: "from-muted/50 to-muted/20 border-border/50 text-muted-foreground"
+  }
+
+  return (
+    <Card 
+      className="group glass-card-elevated overflow-visible"
+      style={{ animationDelay: `${delay * 100}ms` }}
+    >
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <div className="h-4 w-4 text-primary opacity-70">{icon}</div>
+        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${colorClasses[color]} border transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}>
+          <div className="h-4 w-4">{icon}</div>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold tracking-tight">{value}</div>
+      <CardContent className="pt-0">
+        <div className="text-3xl font-bold tracking-tight">{value}</div>
+        <div className={`mt-3 h-1 rounded-full bg-gradient-to-r ${colorClasses[color].replace('from-', 'from-').replace('/20', '/40').replace('/5', '/10')} opacity-60`} />
       </CardContent>
     </Card>
   )
